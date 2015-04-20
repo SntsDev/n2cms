@@ -84,7 +84,7 @@ var n2Name = (function ($) {
 				invokeUpdateName();
 			});
 
-			$("#" + options.titleId).keyup(invokeUpdateName);
+			$("#" + options.titleId).bind("click keyup input paste change blur", invokeUpdateName);
 
 			getName(options.titleId, options.nameId, options.whitespaceReplacement, options.toLower, options.replacements, options.keepUpdatedBoxId, function callback(expected) {
 				var actual = $("#" + options.nameId).attr("value");
