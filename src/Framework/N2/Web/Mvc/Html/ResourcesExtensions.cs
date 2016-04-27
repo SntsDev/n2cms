@@ -22,14 +22,22 @@ namespace N2.Web.Mvc.Html
 			return collection;
 		}
 
+		public static ICollection<string> GetResourceStateCollection(this ViewContext context)
+		{
+			var collection = context.RouteData.DataTokens["ResourceStateCollection"] as ICollection<string>;
+			if (collection == null)
+				context.RouteData.DataTokens["ResourceStateCollection"] = collection = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+			return collection;
+		}
+
 		public static ResourcesHelper Resources(this HtmlHelper html)
 		{
-			return new ResourcesHelper { Writer = html.ViewContext.Writer, StateCollection = html.ViewContext.HttpContext.GetResourceStateCollection() };
+			return new ResourcesHelper { Writer = html.ViewContext.Writer, StateCollection = html.ViewContext.GetResourceStateCollection() };
 		}
 
 		public static ResourcesHelper Resources(this HtmlHelper html, TextWriter writer)
 		{
-			return new ResourcesHelper { Writer = writer, StateCollection = html.ViewContext.HttpContext.GetResourceStateCollection() };
+			return new ResourcesHelper { Writer = writer, StateCollection = html.ViewContext.GetResourceStateCollection() };
 		}
 
 		/// <summary>
@@ -46,13 +54,12 @@ namespace N2.Web.Mvc.Html
 				.StyleSheet(Register.FancyboxCssPath.ResolveUrlTokens());
 		}
 
-		public static IEnumerable<ResourcesHelper> IconsCss(this ResourcesHelper registrator)
+		public static ResourcesHelper IconsCss(this ResourcesHelper registrator)
 		{
 			var p = Register.IconsCssPath.Split(';');
-			var r = new ResourcesHelper[p.Length];
 			for (int i = 0; i < p.Length; ++i)
-				r[i] = registrator.StyleSheet(p[i].ResolveUrlTokens());
-			return r;
+				registrator = registrator.StyleSheet(p[i].ResolveUrlTokens());
+			return registrator;
 		}
 
 		public static ResourcesHelper JQuery(this ResourcesHelper registrator)
@@ -142,12 +149,11 @@ namespace N2.Web.Mvc.Html
 			}
 		}
 
-		public static IEnumerable<ResourcesHelper> PartsJs(this ResourcesHelper registrator)
+		public static ResourcesHelper PartsJs(this ResourcesHelper registrator)
 		{
-			List<ResourcesHelper> result = new List<ResourcesHelper>();
-			result.AddRange(registrator.IconsCss());
-			result.Add(registrator.JavaScript(Register.PartsJsPath.ResolveUrlTokens()));
-			return result;
+			registrator = registrator.IconsCss();
+			registrator = registrator.JavaScript(Register.PartsJsPath.ResolveUrlTokens());
+			return registrator;
 		}
 
 		public static ResourcesHelper PartsCss(this ResourcesHelper registrator)
@@ -198,13 +204,11 @@ namespace N2.Web.Mvc.Html
 			public void Render(TextWriter writer = null)
 			{
 				(writer ?? Writer).Write(content.ToString());
-				content.Clear();
 			}
 
 			public override string ToString()
 			{
 				var output = content.ToString();
-				content.Clear();
 				return output;
 			}
 

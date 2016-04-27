@@ -58,6 +58,15 @@ namespace N2.Edit {
         protected global::System.Web.UI.WebControls.LinkButton btnUnpublish;
         
         /// <summary>
+        /// hlDiscard control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.HyperLink hlDiscard;
+        
+        /// <summary>
         /// hlCancel control.
         /// </summary>
         /// <remarks>
@@ -112,6 +121,15 @@ namespace N2.Edit {
         protected global::System.Web.UI.WebControls.CustomValidator cvException;
         
         /// <summary>
+        /// ie control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::N2.Web.UI.WebControls.ItemEditor ie;
+        
+        /// <summary>
         /// dpFuturePublishDate control.
         /// </summary>
         /// <remarks>
@@ -137,15 +155,6 @@ namespace N2.Edit {
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.HyperLink hlCancelSavePublishInFuture;
-        
-        /// <summary>
-        /// ie control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::N2.Web.UI.WebControls.ItemEditor ie;
         
         /// <summary>
         /// ucInfo control.

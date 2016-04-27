@@ -5,7 +5,7 @@
 			format: 'M d, yyyy'
 		}
 	});
-})(angular.module('n2', ['n2.directives', 'n2.services', 'n2.localization', 'ui', '$strap.directives', "ngRoute", "ngSanitize"], function ($routeProvider, $locationProvider) {
+})(angular.module('n2', ['n2.directives', 'n2.services', 'n2.localization', 'ui', '$strap.directives', "ngRoute", "ngSanitize"], function ($routeProvider, $locationProvider, $httpProvider, $provide) {
 	if (history.pushState) {
 		$locationProvider.html5Mode(true);
 		$locationProvider.hashPrefix("!");
@@ -15,6 +15,20 @@
 		controller: "ManagementCtrl",
 		reloadOnSearch: false
 	});
+
+	$provide.factory('EmittingInterceptor', function ($q, $rootScope) {
+		return {
+			'request': function (config) {
+				$rootScope.$emit("request", config);
+				return config;
+			},
+			'responseError': function (rejection) {
+				$rootScope.$emit("responseError", rejection);
+				return $q.reject(rejection);
+			}
+		}
+	});
+	$httpProvider.interceptors.push('EmittingInterceptor');
 }))
 
 function findBranch(node, selectedPath) {
@@ -71,23 +85,24 @@ function getParentPath(path) {
 	return parentPathExpr.exec(path) && parentPathExpr.exec(path)[1];;
 }
 
-function Uri(uri) {
-	this.uri = uri;
-	this.appendQuery = function (key, value) {
-		if (uri.indexOf("?") >= 0)
-			this.uri += "&" + key + "=" + value;
-		else
-			this.uri += "?" + key + "=" + value;
-		return this;
-	};
-	this.toString = function () {
-		return this.uri;
-	};
-};
-
-function ManagementCtrl($scope, $window, $timeout, $interpolate, $location, $rootScope, Context, Content, Profile, Security, FrameContext, Translate, Eventually, LocationKeeper, Notify, EbbCallbacks) {
+function ManagementCtrl($scope, $window, $timeout, $interpolate, $location, $rootScope, Context, Content, Profile, Security, FrameContext, Translate, Eventually, LocationKeeper, Notify, EbbCallbacks, Paths) {
 	$scope.Content = Content;
 	$scope.Security = Security;
+
+	$scope.Initialization = {
+		requests: [],
+		errors: [],
+		deregeristrators: [
+			$rootScope.$on("request", function (e, args) { $scope.Initialization.requests.push(args.url); }),
+			$rootScope.$on("responseError", function (e, rejection) { $scope.Initialization.errors.push(rejection); })
+		],
+		dispose: function () {
+			angular.forEach(this.deregeristrators, function (d) { d(); });
+			setTimeout(function () {
+				delete $scope.Initialization;
+			});
+		}
+	};
 
 	$scope.appendPreviewOptions = function (url) {
 		if (url == "Empty.aspx")
@@ -106,7 +121,7 @@ function ManagementCtrl($scope, $window, $timeout, $interpolate, $location, $roo
 		angular.forEach(node.Children, reloadTreePreviewOptionsRecursive);
 		node.Parts && angular.forEach(node.Parts, reloadTreePreviewOptionsRecursive);
 	}
-	
+
 	$scope.$watch("Context.PreviewQueries", function (q) {
 		if (!q) return;
 		reloadTreePreviewOptionsRecursive($scope.Context.Content);
@@ -154,6 +169,31 @@ function ManagementCtrl($scope, $window, $timeout, $interpolate, $location, $roo
 		if (window.frames.preview)
 			window.frames.preview.window.location = $scope.appendPreviewOptions(url) || "Empty.aspx";
 	};
+
+	function broadcastUpdaterequest(updaterequest) {
+		setTimeout(function () {
+			$scope.$apply(function () {
+				$scope.$broadcast("refreshnode", updaterequest);
+			});
+		});
+	}
+	decorate(FrameContext, "update", function (updaterequest) {
+		if (updaterequest.node && updaterequest.autosaved)
+		{
+			var node = findNodeRecursive($scope.Context.Content, updaterequest.path);
+			if (node)
+				return broadcastUpdaterequest(updaterequest);
+
+			var parentPath = getParentPath(updaterequest.path);
+			var parentNode = findNodeRecursive($scope.Context.Content, parentPath);
+			if (parentNode) {
+				$scope.reloadChildren(parentPath, /*callback*/function () {
+					$scope.expandTo(updaterequest.path, /*select*/true);
+					broadcastUpdaterequest(updaterequest);
+				});
+			}
+		}
+	});
 
 	decorate(FrameContext, "refresh", function (ctx) {
 		// legacy refresh call from frame
@@ -211,13 +251,14 @@ function ManagementCtrl($scope, $window, $timeout, $interpolate, $location, $roo
 					$scope.Context[key] = changed;
 				else if (current.length != changed.length)
 					$scope.Context[key] = changed;
-				else 
+				else
 					for (var i = 0; i < current.length; i++) {
 						if (current[i].Id != latest[i].Id)
 							$scope.Context[key] = changed;
 					}
 			}
 		});
+
 		if (!$scope.$$phase)
 			$scope.$digest();
 	});
@@ -236,6 +277,7 @@ function ManagementCtrl($scope, $window, $timeout, $interpolate, $location, $roo
 
 			if (message) {
 				Notify.show({
+					iconClass: "fa fa-wifi",
 					message: message + " Waiting " + (retryTimeout / 1000) + " seconds before retrying.",
 					type: "error"
 				});
@@ -247,6 +289,7 @@ function ManagementCtrl($scope, $window, $timeout, $interpolate, $location, $roo
 
 						communicationattempts = 0;
 						Notify.show({
+							iconClass: "fa fa-wifi",
 							message: "Server connection restored.",
 							type: "succes",
 							timeout: 5000
@@ -294,8 +337,9 @@ function ManagementCtrl($scope, $window, $timeout, $interpolate, $location, $roo
 
 	var query = $location.search();
 	Context.full(query, function (i) {
+		Paths.initialize(i.Interface.Paths)
+		$scope.Initialization.dispose();
 		$scope.Context.Partials.Management = "App/Partials/Management.html";
-		Content.paths = i.Interface.Paths;
 		translateMenuRecursive(i.Interface.MainMenu);
 		translateMenuRecursive(i.Interface.ActionMenu);
 		translateMenuRecursive(i.Interface.ContextMenu);
@@ -399,7 +443,7 @@ function ManagementCtrl($scope, $window, $timeout, $interpolate, $location, $roo
 			? findNodeRecursive($scope.Context.Content, parentPathOrNode)
 			: parentPathOrNode;
 
-		if (node){
+		if (node) {
 			Content.loadChildren(node, function () {
 				callback && callback.apply(this, arguments);
 				$scope.$emit("childrenloaded", { node: node });
@@ -512,7 +556,7 @@ function ScopeHandler($scope, Content) {
 	return this;
 }
 
-function TrunkCtrl($scope, $rootScope, Content, SortHelperFactory) {
+function TrunkCtrl($scope, $rootScope, Content, SortHelperFactory, Uri, Notify) {
 	$scope.$watch("Context.Content", function (content) {
 		$scope.node = content;
 	});
@@ -604,23 +648,79 @@ function TrunkCtrl($scope, $rootScope, Content, SortHelperFactory) {
 	$scope.scope = new ScopeHandler($scope, Content);
 }
 
-function BranchCtrl($scope, Content, Translate, SortHelperFactory) {
+function BranchCtrl($scope, $timeout, Content, Translate, SortHelperFactory, Notify) {
 	$scope.node = $scope.child;
 	$scope.sort = new SortHelperFactory($scope, Content);
-	$scope.tags = [];
-	if ($scope.node.Current) {
-		var mi = $scope.node.Current.MetaInformation;
-		if (mi) {
-			if (mi.authority) $scope.tags.push({ ToolTip: Translate("branch.tags.authority", "Site: ") + (mi.authority.ToolTip || " (*)"), IconClass: "fa fa-home", Url: "#" });
-			if (mi.hidden) $scope.tags.push({ ToolTip: Translate("branch.tags.hidden", "Hidden"), IconClass: "fa fa-eraser", Url: "#" });
-			if (mi.language) $scope.tags.push({ ToolTip: Translate("branch.tags.language", "Language: ") + mi.language.Text, IconClass: "fa fa-globe", Url: "#" });
-			if (mi.locked) $scope.tags.push({ ToolTip: Translate("branch.tags.locked", "Access restrictions"), IconClass: "fa fa-lock", Url: "#" });
-			if (mi.zone) $scope.tags.push({ ToolTip: Translate("branch.tags.zone", "In zone: ") + mi.zone.Text, IconClass: "fa fa-columns", Url: "#" });
-			if (mi.draft) $scope.tags.push({ ToolTip: Translate("branch.tags.draft", "Has draft: ") + mi.draft.ToolTip, IconClass: "fa fa-circle-o", Url: "#" });
-			if (mi.system) $scope.tags.push({ ToolTip: mi.system.ToolTip, IconClass: "fa fa-qrcode", Url: "#" });
-			if ($scope.node.Current.State == Content.states.Unpublished) $scope.tags.push({ ToolTip: Translate("branch.tags.unpublished", "Unpublished"), IconClass: "fa fa-stop", Url: "#" });
+	function refresheMetaInformation(node) {
+		$scope.tags = [];
+		if (node.Current) {
+			var mi = node.Current.MetaInformation;
+			if (mi) {
+				if (mi.authority) $scope.tags.push({ ToolTip: Translate("branch.tags.authority", "Site: ") + (mi.authority.ToolTip || " (*)"), IconClass: "fa fa-home", Url: "#" });
+				if (mi.hidden) $scope.tags.push({ ToolTip: Translate("branch.tags.hidden", "Hidden"), IconClass: "fa fa-eraser", Url: "#" });
+				if (mi.language) $scope.tags.push({ ToolTip: Translate("branch.tags.language", "Language: ") + mi.language.Text, IconClass: "fa fa-globe", Url: "#" });
+				if (mi.locked) $scope.tags.push({ ToolTip: Translate("branch.tags.locked", "Access restrictions"), IconClass: "fa fa-lock", Url: "#" });
+				if (mi.zone) $scope.tags.push({ ToolTip: Translate("branch.tags.zone", "In zone: ") + mi.zone.Text, IconClass: "fa fa-columns", Url: "#" });
+				if (mi.system) $scope.tags.push({ ToolTip: mi.system.ToolTip, IconClass: "fa fa-qrcode", Url: "#" });
+				if (mi.draft) $scope.tags.push({ ToolTip: Translate(mi.draft.VersionIndex == node.Current.VersionIndex ? "branch.tags.isDraft" : "branch.tags.draft", "Has draft: ") + mi.draft.ToolTip, IconClass: "fa fa-circle-o", Url: "#" });
+				if (node.Current.State == Content.states.Unpublished) $scope.tags.push({ ToolTip: Translate("branch.tags.unpublished", "Unpublished"), IconClass: "fa fa-stop", Url: "#" });
+			}
 		}
+		$scope.status = {
+			draft: !mi.system && (node.Current.State == Content.states.Draft || node.Current.State == Content.states.Waiting || node.Current.MetaInformation.draft),
+			unpublished: node.Current.State == Content.states.Unpublished || node.Current.State == Content.states.Deleted,
+			startpage: node.Current.MetaInformation.authority
+		};
 	}
+	refresheMetaInformation($scope.node);
+	$scope.$on("refreshnode", function (e, args) {
+		var node = $scope.node;
+		if (args.node.ID == node.Current.ID) {
+			node.Current.MetaInformation = args.node.MetaInformation;
+			node.Current.Title = args.node.Title;
+			refresheMetaInformation(node);
+			var mi = node.Current.MetaInformation;
+			if (args.autosaved && !isNaN(mi.draft && mi.draft.VersionIndex)) {
+				$scope.autoSaveWatch = $scope.$watch("node.Active", function (value, oldValue) {
+					if (!value) {
+						$scope.autoSaveWatch();
+						$timeout(function () {
+							if (!args.autosaved || isNaN(mi.draft && mi.draft.VersionIndex))
+								return;
+
+							Notify.show({
+								iconClass: "fa fa-thumbs-down",
+								message: Translate("branch.autosave.discardDraft", "An autosaved draft is left behind. Discard it?"),
+								type: "info",
+								onClick: function () {
+									Content.discard(Content.applySelection({ n2versionIndex: mi.draft.VersionIndex }, node.Current), function (result) {
+										if (result.Discarded) {
+											node.Current.MetaInformation = result.Node.MetaInformation;
+											refresheMetaInformation(node);
+										} else if (result.Removed) {
+											$scope.reloadChildren(result.Node.Path, /*callback*/function () {
+												$scope.expandTo(result.Node.Path, /*select*/true);
+											});
+										} else {
+											console.warn("Unexpected result", result);
+										}
+
+										Notify.show({
+											iconClass: "fa fa-trash",
+											message: Translate("branch.autosave.draftDiscarded", "The autosaved draft was removed."),
+											type: "info",
+											timeout: 2500
+										});
+									});
+								},
+								timeout: 30000
+							});
+						}, 5000);
+					}
+				});
+			}
+		}
+	});
 }
 
 function MenuCtrl($rootScope, $scope, Security) {
@@ -784,7 +884,7 @@ function PageInfoDetailsCtrl($scope, Content) {
 
 function PagePublishCtrl($scope, $rootScope, $modal, Content, Confirm, Translate) {
 	$scope.publish = function () {
-		Content.publish({ selected: $scope.Context.CurrentItem.Path, n2versionIndex: $scope.Context.CurrentItem.VersionIndex }, function (result) {
+		Content.publish(Content.applySelection({ n2versionIndex: $scope.Context.CurrentItem.VersionIndex }, $scope.Context.CurrentItem), function (result) {
 			$scope.previewUrl(result.Current.PreviewUrl);
 
 			$scope.reloadNode(result.Current.Path, $scope.refreshContext);
@@ -880,17 +980,18 @@ function FrameActionCtrl($scope, $rootScope, $timeout, FrameManipulator) {
 function NotifyCtrl($scope, $timeout, Notify) {
 	var defaults = { visible: true, type: "warning" };
 
-	function clear() {
+	$scope.clear = function() {
 		$scope.Notify = {};
 	};
 
 	Notify.subscribe(function (options) {
 		setTimeout(function () {
 			$scope.Notify = angular.extend({}, defaults, options);
-			options.timeout && $timeout(clear, options.timeout);
+			options.timeout && $timeout($scope.clear, options.timeout);
 			$scope.$digest();
 		}, 10);
 	});
+
 }
 
 function MessagesCtrl($scope, $rootScope, $sce, Context, Content, Confirm) {

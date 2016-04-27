@@ -44,6 +44,7 @@
 			}
 			var items = self.extractChangedItems(dirtbags);
 
+			$(".publish.command").attr("disabled", "disabled");
 			jQuery.each(items, function (id, item) {
 				if (deferred)
 					deferred = deferred.then(function () { return self.saveItem(item); });
@@ -52,7 +53,12 @@
 
 				deferred = deferred.then(function (result) {
 					$("#" + item.newItemReference).val(result.ID + "." + result.VersionIndex);
+					$(".publish.command").attr("disabled", null);
+					$(".discard.command").attr("href", "DiscardPreview.aspx?n2item=" + result.ID + "&n2versionIndex=" + result.VersionIndex).show();
+					$(".cancel.command").hide();
+					window.n2ctx && n2ctx.update && n2ctx.update({ id: result.ID, path: result.Path, permission: result.Permission, previewUrl: result.PreviewUrl, draft: result.Draft, node: result.Node, autosaved: true });
 				}, function () {
+					$(".publish.command").attr("disabled", null);
 					console.warn("Error auto-saving", item, arguments);
 				});
 			})
@@ -110,7 +116,6 @@
 			return dirty;
 		}
 		this.checkout = function () {
-			console.log(dirty);
 			dirty = false;
 			return $("#" + this.editorID).val();
 		}
@@ -125,7 +130,6 @@
 			return dirty;
 		}
 		this.checkout = function () {
-			console.log(dirty);
 			dirty = false;
 			return $("#" + this.editorID).val();
 		}

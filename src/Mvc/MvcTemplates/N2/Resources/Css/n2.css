@@ -152,7 +152,7 @@ a { text-decoration: none; color: #000; }
 	#messages .message-list { width:500px; overflow:auto; }
 	#messages .message-list li a { max-width: unset !important; }
 	#messages .message-list li a p { margin: 5px 0; padding: 5px; background: #fff; border-radius: 4px; white-space:normal; font-size:.8em; }
-		#messages .message-list li a p code { font-size:.8em; }
+		#messages .message-list li a p pre { font-size:.8em; max-height: 400px; overflow:auto; }
 	#messages .message-list li a time { color:#666; text-transform: none; font-size: 11px; font-family: Arial; }
 		#messages .message-list li a.message-delete { position:absolute; right:0; opacity:0; }
 		#messages .message-list li:hover a.message-delete { position:absolute; right:0; opacity:1; }
@@ -176,11 +176,54 @@ a { text-decoration: none; color: #000; }
 #footer {
 	position:absolute;
 	bottom:0;	
-	width:100%;
+	right:0;
+	width:50%;
+	text-align:right;
 }
 	#footer .alert {
+		display:inline-block;
+		margin: 0;
+		padding: 20px 40px 20px 20px;
+		border-radius:0;
+		text-align:left;
+		white-space:nowrap;
+		position:relative;
+
+		transition: all .5s ease-in;
+		opacity:0;
+	}
+	#footer .alert.active {
+		opacity:1;
 		margin: 10px;
 	}
+	#footer .alert.active.ng-hide {
+		display:inline-block !important;
+		opacity:0;
+		transition: all .2s ease-out;
+	}
+	#footer .alert-danger.active {
+		margin-bottom: 50%;
+	}
+		#footer .alert > b {
+			font-size:24px;
+			vertical-align:top;
+		}
+		#footer .alert > div {
+			display:inline-block;
+			padding: 3px 10px;
+			min-width:100px;
+			white-space:normal;
+		}
+		#footer .close {
+			font-size:48px;
+			position:absolute;
+			top:0;
+			right:0;
+			margin:0;
+			line-height:48px;
+			padding:10px;
+		}
+
 
 #confirm .in {
     display:block;

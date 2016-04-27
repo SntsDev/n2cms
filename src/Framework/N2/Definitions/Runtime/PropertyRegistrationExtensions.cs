@@ -228,6 +228,15 @@ namespace N2.Definitions.Runtime
 		}
 
 		/// <summary>
+		/// Specifices usage of an <see cref="System.Web.UI.WebControls.TextBox"/> web control as editor for the contents within a html element.</summary>
+		/// <example>
+		public static EditableBuilder<EditableHtmlElementAttribute> HtmlElement(this IPropertyRegistration<string> registration, string tagName, string title = null)
+		{
+			return registration.Registration.RegisterEditable<EditableHtmlElementAttribute>(registration.PropertyName, title)
+				.Configure(ehea => ehea.TagName = tagName);
+		}
+
+		/// <summary>
 		/// Specifies a text box which renders as a html meta tag element when rendered on a web page.
 		/// </summary>
 		public static EditableBuilder<EditableMetaTagAttribute> Meta(this IPropertyRegistration<string> registration, string title = null)
@@ -324,6 +333,25 @@ namespace N2.Definitions.Runtime
 			return builder;
 		}
 
+		public static EditableBuilder<T> Mode<T>(this EditableBuilder<T> builder, System.Web.UI.WebControls.TextBoxMode mode) where T : EditableTextAttribute
+		{
+			builder.Configure(e => e.TextMode = mode);
+			return builder;
+		}
+
+		public static EditableBuilder<T> MultiLine<T>(this EditableBuilder<T> builder, int? rows = null) where T : EditableTextAttribute
+		{
+			builder = builder.Configure(e => e.TextMode = System.Web.UI.WebControls.TextBoxMode.MultiLine);
+			builder = builder.Configure(e => e.Rows = rows ?? 0);
+			return builder;
+		}
+
+		public static EditableBuilder<T> AllowedTemplates<T>(this EditableBuilder<T> builder, params string[] templateNames) where T : EditableChildrenAttribute
+		{
+			builder.Configure(eca => eca.AllowedTemplateKeys = templateNames);
+			return builder;
+		}
+
 		// displayable
 
 		/// <summary>Specifies the usage of a displayable tokens for rendering this property.</summary>
@@ -334,6 +362,14 @@ namespace N2.Definitions.Runtime
 
 		/// <summary>Specifies the usage of a displayable tokens for rendering this property.</summary>
 		public static Builder<DisplayableTokensAttribute> WithTokens(this EditableBuilder<EditableFreeTextAreaAttribute> builder)
+		{
+			var displayable = new DisplayableTokensAttribute { Name = builder.PropertyName };
+			builder.Registration.Add(displayable);
+			return new Builder<DisplayableTokensAttribute>(builder.PropertyName, builder.Registration);
+		}
+
+		/// <summary>Specifies the usage of a displayable tokens for rendering this property.</summary>
+		public static Builder<DisplayableTokensAttribute> WithTokens(this EditableBuilder<EditableTextAttribute> builder)
 		{
 			var displayable = new DisplayableTokensAttribute { Name = builder.PropertyName };
 			builder.Registration.Add(displayable);

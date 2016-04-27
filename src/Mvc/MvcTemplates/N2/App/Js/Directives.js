@@ -646,5 +646,47 @@ span.null {color:silver}\
 		}
 	});
 
+	module.directive("n2BindEscaped", function () {
+		return {
+			restrict: "A",
+			link: function (scope, element, attrs) {
+				var message = scope.$eval(attrs.n2BindEscaped) || "";
+				//message = message
+				//	.replace(/&/g, '&amp;')
+				//	.replace(/"/g, '&quot;')
+				//	.replace(/'/g, '&#39;')
+				//	.replace(/</g, '&lt;')
+				//	.replace(/>/g, '&gt;');
+				//console.log("msg", message, scope.message);
+				element.html(message);
+			}
+		}
+	});
 
+	angular.forEach(["Active", "Loading"], function (key) {
+		var attributeNam = "n2" + key;
+		var cssClass = key.toLowerCase();
+		module.directive(attributeNam, function () {
+			return {
+				restrict: "A",
+				link: function (scope, element, attrs) {
+					scope.$watch(attrs[attributeNam], function (value) { element.toggleClass(cssClass, !!value); })
+				}
+			}
+		});
+	})
+
+	module.directive("n2DelayedActivation", function () {
+		return {
+			restrict: "A",
+			link: function (scope, element, attrs) {
+				scope.$watch(attrs.n2DelayedActivation, function (active) {
+					if (active)
+						setTimeout(function () { element.addClass("active"); })
+					else
+						setTimeout(function () { element.removeClass("active"); }, 200)
+				});
+			}
+		}
+	});
 })(angular.module('n2.directives', ['n2.localization']));

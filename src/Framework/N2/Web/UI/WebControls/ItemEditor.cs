@@ -203,7 +203,7 @@ namespace N2.Web.UI.WebControls
 
             Register.StyleSheet(Page, Url.ResolveTokens("{ManagementUrl}/Resources/Css/edit.css"));
 
-			Page.ClientScript.RegisterHiddenField(ClientID + "_autosaved_item_id", currentItem.ID.ToString());
+			Page.ClientScript.RegisterHiddenField(ClientID + "_autosaved_item_id", Page.Request[ClientID + "_autosaved_item_id"] ?? currentItem.ID.ToString());
 			if (EnableAutoSave)
 			{
 				Register.JavaScript(Page, @"	window.n2autosave && n2autosave.init();", ScriptOptions.DocumentReady);
@@ -322,12 +322,13 @@ namespace N2.Web.UI.WebControls
         #region IItemEditor Members
 
         public event EventHandler<ItemEventArgs> Saved;
+		public event Action<object, CommandContext> CreatingContext;
 
-        #endregion
+		#endregion
 
-        #region IBinder<CommandContext> Members
+		#region IBinder<CommandContext> Members
 
-        public N2.Edit.Workflow.CommandContext BinderContext { get; internal set; }
+		public N2.Edit.Workflow.CommandContext BinderContext { get; internal set; }
 
         public bool UpdateObject(N2.Edit.Workflow.CommandContext value)
         {
@@ -391,32 +392,49 @@ namespace N2.Web.UI.WebControls
             var cc = new CommandContext(Definition ?? GetDefinition(), CurrentItem, Interfaces.Editing, Page.User, this, new PageValidator<CommandContext>(Page));
 
 			TryReplaceContentWithAutosavedVersion(cc);
-			
-			return cc;
+
+			if (CreatingContext != null)
+				CreatingContext(this, cc);
+
+            return cc;
         }
 
-		private bool TryReplaceContentWithAutosavedVersion(CommandContext cc)
+		private int[] GetAutosavedIdAndVersion()
 		{
 			var autoSaveReference = Page.Request[ClientID + "_autosaved_item_id"];
 			if (Page.IsPostBack && !string.IsNullOrEmpty(autoSaveReference))
-			{
-				var idAndVersion = autoSaveReference.Split('.').Select(x => int.Parse(x)).ToList();
-				if (idAndVersion.Count > 1)
-				{
-					var item = CurrentItem;
-					if (item.ID == 0 && idAndVersion[0] != 0)
-						item = Engine.Persister.Get(idAndVersion[0]);
-					item = Engine.Resolve<IVersionManager>().GetVersion(item, idAndVersion[1]);
-					cc.Content = item ?? cc.Content;
-					return item != null;
-				}
-			}
-			return false;
+				return autoSaveReference.Split('.').Select(x => int.Parse(x)).ToArray();
+			return new int[0];
+        }
+
+		public ContentItem GetAutosaveVersion()
+		{
+			var idAndVersion = GetAutosavedIdAndVersion();
+			if (idAndVersion == null && idAndVersion.Length < 1)
+				return null;
+			if (idAndVersion[0] == 0)
+				return null;
+			var item = Engine.Persister.Get(idAndVersion[0]);
+			if (item != null && idAndVersion.Length > 1 && idAndVersion[1] != 0)
+				item = Engine.Resolve<IVersionManager>().GetVersion(item, idAndVersion[1]);
+			return item;
+		}
+
+		private bool TryReplaceContentWithAutosavedVersion(CommandContext cc)
+		{
+			var item = GetAutosaveVersion();
+			if (item == null)
+				return false;
+			if (cc.Content.ID == 0)
+				cc.Content.AddTo(null);
+			cc.Content = item;
+			return true;
 		}
 
         public void Initialize(string discriminator, string template, ContentItem parent)
         {
             var definition = Engine.Definitions.GetDefinition(discriminator);
+
             if (!string.IsNullOrEmpty(template))
             {
                 var info = Engine.Resolve<ITemplateAggregator>().GetTemplate(definition.ItemType, template);

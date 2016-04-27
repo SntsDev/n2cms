@@ -21,6 +21,7 @@
 		<asp:HyperLink ID="hlFuturePublish" data-icon-class="fa fa-clock-o" NavigateUrl="#futurePanel" CssClass="command plain iconed future hidden-action" runat="server" meta:resourceKey="hlSavePublishInFuture">Save and publish version in future</asp:HyperLink>
 		<asp:LinkButton ID="btnUnpublish" data-icon-class="fa fa-stop" OnCommand="OnUnpublishCommand" runat="server" CssClass="command plain iconed unpublish hidden-action" meta:resourceKey="btnUnpublish">Unpublish</asp:LinkButton>
 	</edit:buttongroup>
+	<asp:HyperLink ID="hlDiscard" NavigateUrl="DiscardPreview.aspx" CssClass="btn command discard" runat="server" style="display:none" meta:resourceKey="btnDiscard">Close and discard draft</asp:HyperLink>
     <edit:cancellink id="hlCancel" runat="server" cssclass="btn" meta:resourcekey="hlCancel">Close</edit:cancellink>
     <ul class="nav pull-right">
         <li>
@@ -39,10 +40,12 @@
                 <span class="rightOpener-open" ng-hide="sidebarOpen">&laquo;</span>
                 <span class="rightOpener-close" ng-show="sidebarOpen">&raquo;</span>
             </a>
-	        <asp:HyperLink ID="hlNewerVersion" runat="server" Text="There is a newer unpublished version of this page." CssClass="alert alert-margin" Visible="False" meta:resourcekey="hlNewerVersionResource1"/>
+	        <asp:HyperLink ID="hlNewerVersion" runat="server" Text="There is a newer unpublished version of this page." CssClass="alert alert-warning alert-margin" Visible="False" meta:resourcekey="hlNewerVersionResource1"/>
 	        <asp:HyperLink ID="hlOlderVersion" runat="server" Text="This is a version of another item." CssClass="alert alert-info alert-margin" Visible="False" meta:resourcekey="hlOlderVersionResource1"/>
-		    <asp:ValidationSummary ID="vsEdit" runat="server" CssClass="alert alert-block alert-margin" HeaderText="The item couldn't be saved. Please look at the following:" meta:resourceKey="vsEdit"/>
+		    <asp:ValidationSummary ID="vsEdit" runat="server" CssClass="alert alert-warning alert-block alert-margin" HeaderText="The item couldn't be saved. Please look at the following:" meta:resourceKey="vsEdit"/>
 		    <asp:CustomValidator ID="cvException" runat="server" Display="None" />
+
+		    <n2:ItemEditor ID="ie" runat="server" EnableAutoSave="true" />
 
 		    <div id="futurePanel" class="modal" tabindex="-1" role="dialog">
 			    <div class="modal-header">
@@ -58,8 +61,6 @@
 			    </div>
 		    </div>
 		    <div class="future-panel-backdrop modal-backdrop fade in" style="display:none"></div>
-
-		    <n2:ItemEditor ID="ie" runat="server" EnableAutoSave="true" />
 
         </div>
          <!-- right panel --> 
@@ -129,7 +130,7 @@
             var title = $(this).attr("title");
             var content = $(this).attr("data-content");
             $(this).attr("title", "");
-            $(this).tooltip({ html: true, title: "<h6>" + title + "</h6><p>" + content + "</p>" });
+            $(this).tooltip({ html: true, title: (title ? "<h6>" + title + "</h6>" : "") + (content ? "<p>" + content + "</p>"  : "")});
         });
     });
 
