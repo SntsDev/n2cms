@@ -59,7 +59,7 @@
 	<% } %>
 	<% } %>
 	</asp:PlaceHolder>
-	<base href="/N2/" />
+	<base href="<%= Request.Url.AbsolutePath %>" />
 </head>
 <body ng-app="n2" ng-view>
 </body>
