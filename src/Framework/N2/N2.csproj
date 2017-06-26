@@ -151,6 +151,7 @@
     <Compile Include="Collections\IZonedListOfT.cs" />
     <Compile Include="Collections\TypeFilter.cs" />
     <Compile Include="Collections\ZoneFilter.cs" />
+    <Compile Include="Configuration\AutosaveElement.cs" />
     <Compile Include="Configuration\ChildrenElement.cs" />
     <Compile Include="Configuration\CkEditorElement.cs" />
     <Compile Include="Configuration\ClientElement.cs" />
@@ -160,6 +161,7 @@
     <Compile Include="Configuration\HtmlSanitizeElement.cs" />
     <Compile Include="Configuration\OrganizeElement.cs" />
     <Compile Include="Configuration\OutputCacheInvalidationMode.cs" />
+    <Compile Include="Configuration\RavenElement.cs" />
     <Compile Include="Configuration\TargetingCollection.cs" />
     <Compile Include="Configuration\TargetingElement.cs" />
     <Compile Include="Configuration\ExceptionResolutionMode.cs" />

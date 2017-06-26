@@ -270,14 +270,23 @@ namespace N2.Management.Api
 					item = versions.GetOrCreateDraft(item);
 
 				Update(requestBody, item);
+				var page = Find.ClosestPage(item);
 
-				if (item.ID == 0 && item.VersionOf.HasValue)
+				// existing page
+				// draft of existing page
+				// existing part
+				// draft of existing part
+				if (item.VersionOf.HasValue)
+					versions.UpdateVersion(item);
+				else if (page != null && page.VersionOf.HasValue)
 					versions.UpdateVersion(item);
 				else
 					engine.Persister.Save(item);
 			}
 			else
 			{
+				var parent = selected;
+
 				int id;
 				if (requestBody.ContainsKey("ID") && (id = (int)requestBody["ID"]) != 0)
 				{
@@ -285,11 +294,30 @@ namespace N2.Management.Api
 				}
 				else
 				{
-					item = engine.Resolve<IDefinitionManager>().GetDefinition(discriminator).CreateInstance(selected);
+					var definitions = engine.Resolve<IDefinitionManager>();
+					var definition = definitions.GetDefinition(discriminator);
+
+					if (!definition.IsPage)
+					{
+						if (parent.ID != 0 && !parent.VersionOf.HasValue)
+						{
+							parent = versions.GetOrCreateDraft(parent);
+						}
+					}
+
+					var templateKey = context.Request["template"];
+					var zoneName = context.Request["zoneName"];
+
+					item = engine.Resolve<ContentActivator>().CreateInstance(definition.ItemType, parent, templateKey);
 					item.State = ContentState.Draft;
+					item.ZoneName = zoneName;
+					item.AddTo(parent);
 				}
 
 				Update(requestBody, item);
+
+				// new page
+				// new part
 
 				if (item.ID == 0 && (item.VersionOf.HasValue || !item.IsPage))
 					versions.UpdateVersion(item);
@@ -299,8 +327,12 @@ namespace N2.Management.Api
 
 			context.Response.WriteJson(new
 			{
+				EditUrl = engine.ManagementPaths.GetEditExistingItemUrl(item, context.Request["returnUrl"]),
+				PageID = Find.ClosestPage(item)?.VersionOf?.ID ?? Find.ClosestPage(item)?.ID,
 				ID = item.VersionOf.ID ?? item.ID,
 				VersionIndex = item.VersionIndex,
+				VersionKey = item.GetVersionKey(),
+				Selected = context.Request[PathData.SelectedQueryKey],
 				Path = item.Path,
 				PreviewUrl = item.Url,
 				Permission = engine.ResolveAdapter<NodeAdapter>(item).GetMaximumPermission(item),
@@ -669,7 +701,7 @@ namespace N2.Management.Api
 			if (context.Request["pages"] != null)
 				query.OnlyPages = Convert.ToBoolean(context.Request["pages"]);
 			if (Selection.SelectedItem.ChildState.IsAny(CollectionState.IsLarge))
-				query.Limit = new Range(0, SyncChildCollectionStateAttribute.LargeCollecetionThreshold);
+				query.Limit = new Range(0, SyncChildCollectionStateAttribute.LargeCollectionThreshold);
 			if (context.Request["skip"] != null)
 				query.Skip(int.Parse(context.Request["skip"]));
 			if (context.Request["take"] != null)
